@@ -59,6 +59,7 @@ but you have to reference me and to use the same license.
 #define LCD_DEGREE_C_CHARACTER  (byte)0
 #define LCD_DEGREE_F_CHARACTER  (byte)1
 #define LCD_MM_CHARACTER        (byte)2
+#define LCD_MBAR_CHARACTER      (byte)3
 
 /*===== State machine ====*/
 #define STATE_NORMAL            0x01    // General state. Everything is displayed "as is", no blinking parts
@@ -374,9 +375,9 @@ void setup() {
 /* ==== Loop ==== */
 void loop() {
   
-/*   
- * printBME280Data(&Serial);
-   printBME280CalculatedData(&Serial);
+   
+  printBME280Data();
+ /*  printBME280CalculatedData(&Serial);
    */
   if (setButton.onPressed()) {
     time_pressed = millis();
@@ -453,12 +454,20 @@ void printTemperature(int temperature) {
 
 }
 
-void printBME280Data(void) { // Stream* client){
+void printBME280Data(void) {
+  static unsigned long loc_time = 0;
+  unsigned long millis_time = millis();
   float temp(NAN), hum(NAN), pres(NAN);
   static unsigned long turn = 0;
 
   // Parameters: (float& pressure, float& temp, float& humidity, bool hPa = true, bool celsius = false)
   uint8_t pressureUnit(2);
+
+  if (loc_time == 0 || (millis_time - 1000) >= loc_time || millis_time < loc_time) {
+    loc_time = millis_time;
+  } else {
+    return;
+  }
   bme.ReadData(pres, temp, hum, true, pressureUnit);
   temp = bme.ReadTemperature(true);
   /* Alternatives to ReadData():
@@ -482,7 +491,8 @@ void printBME280Data(void) { // Stream* client){
 */
   lcd.setCursor(0, 1);
   lcd.print(round(pres * 25.4));
-  lcd.write(LCD_MM_CHARACTER);
+//  lcd.write(LCD_MM_CHARACTER);
+  lcd.write (LCD_MBAR_CHARACTER);
   lcd.print("  ");
 //  printTemperature(round(temp));
   if (temp > 0) { lcd.print ("+"); }
@@ -544,6 +554,7 @@ void DisplaySensorsData (void) {
       humidity = current_record.GetHumidity();
       lcd.print (current_record.GetPressure());
       lcd.write (LCD_MM_CHARACTER);
+//      lcd.write (LCD_MBAR_CHARACTER);
       lcd.print ("  ");
       lcd.print (char_sign(temperature));
       if (global_settings.temperature_unit == TEMPERATURE_CELSIUS) {
@@ -593,9 +604,20 @@ void createAdditionalCharacters(void) {
     0b10001,
     0b00000
   };
+  byte mbarChar[8] = {
+    0b11011,
+    0b10101,
+    0b10001,
+    0b01000,
+    0b01110,
+    0b01001,
+    0b01110,
+    0b00000
+  };
   lcd.createChar(LCD_DEGREE_C_CHARACTER, degreeC_Char);
   lcd.createChar(LCD_DEGREE_F_CHARACTER, degreeF_Char);
   lcd.createChar(LCD_MM_CHARACTER, mmChar);
+  lcd.createChar(LCD_MBAR_CHARACTER, mbarChar);
 }
 
 int sign(short data) {
